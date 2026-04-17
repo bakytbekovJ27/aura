@@ -413,6 +413,5 @@ backend/db.sqlite3
 backend/media/
 frontend/build/
 frontend/dist/
-backend/stylist/__pycache__/
+backend/stylist/__pycache__/*.pyc
 backend/stylist/migrations/__pycache__/
-*.pyc
