@@ -1,7 +1,7 @@
 from django.contrib.auth.models import User
 from rest_framework import serializers
 
-from .models import AIRecommendation, ChatMessage, ChatSession, UserProfile, WardrobeItem
+from .models import AIRecommendation, ChatMessage, ChatSession, Collection, Look, UserProfile, WardrobeItem
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -140,3 +140,56 @@ class AIRecommendationSerializer(serializers.ModelSerializer):
         model = AIRecommendation
         fields = ('id', 'rec_type', 'input_params', 'result', 'created_at')
         read_only_fields = ('created_at',)
+
+
+class CollectionSerializer(serializers.ModelSerializer):
+    looks_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Collection
+        fields = ('id', 'name', 'description', 'looks_count', 'created_at')
+        read_only_fields = ('created_at',)
+
+    def get_looks_count(self, obj):
+        return obj.looks.count()
+
+
+class LookSerializer(serializers.ModelSerializer):
+    collection = serializers.PrimaryKeyRelatedField(
+        queryset=Collection.objects.none(),
+        allow_null=True,
+        required=False,
+    )
+    items = serializers.PrimaryKeyRelatedField(
+        queryset=WardrobeItem.objects.none(),
+        many=True,
+    )
+    collection_detail = CollectionSerializer(source='collection', read_only=True)
+    items_detail = WardrobeItemSerializer(source='items', many=True, read_only=True)
+
+    class Meta:
+        model = Look
+        fields = (
+            'id',
+            'name',
+            'collection',
+            'collection_detail',
+            'items',
+            'items_detail',
+            'rating',
+            'ai_feedback',
+            'created_at',
+        )
+        read_only_fields = ('rating', 'ai_feedback', 'created_at')
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+        if request and request.user.is_authenticated:
+            self.fields['collection'].queryset = Collection.objects.filter(user=request.user)
+            self.fields['items'].queryset = WardrobeItem.objects.filter(user=request.user)
+
+    def validate_items(self, items):
+        if not items:
+            raise serializers.ValidationError('Добавь хотя бы одну вещь в образ.')
+        return items

@@ -7,6 +7,7 @@ const NAV = [
   { to: '/wardrobe',  icon: '👗', label: 'Гардероб'  },
   { to: '/accessories', icon: '👜', label: 'Аксессуары' },
   { to: '/tips',      icon: '💬', label: 'Ассистент' },
+  { to: '/looks',     icon: '✨', label: 'Образы'    },
   { to: '/profile',   icon: '👤', label: 'Профиль'   },
 ];
 

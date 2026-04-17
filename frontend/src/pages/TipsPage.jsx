@@ -150,39 +150,41 @@ export default function TipsPage() {
         </aside>
 
         <section className="chat-panel card">
-          {loadingMessages ? (
-            <div className="loading-overlay">
-              <span className="spinner spinner-dark" /> Загружаем чат...
-            </div>
-          ) : messages.length === 0 ? (
-            <div className="chat-empty-state">
-              <div style={{ fontSize: 56, marginBottom: 14 }}>🤖</div>
-              <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 30, marginBottom: 8 }}>
-                Спроси о своём образе
+          <div className="chat-panel-body">
+            {loadingMessages ? (
+              <div className="loading-overlay">
+                <span className="spinner spinner-dark" /> Загружаем чат...
               </div>
-              <p style={{ color: 'var(--muted)', maxWidth: 560, margin: '0 auto 22px', lineHeight: 1.7 }}>
-                Ассистент посмотрит на вещи в твоём гардеробе и предложит готовый комплект без лишней анкеты и сложных настроек.
-              </p>
-              <div className="chat-example-list">
-                {EXAMPLES.map(example => (
-                  <button key={example} className="chat-example" onClick={() => sendMessage(example)}>
-                    {example}
-                  </button>
+            ) : messages.length === 0 ? (
+              <div className="chat-empty-state">
+                <div style={{ fontSize: 56, marginBottom: 14 }}>🤖</div>
+                <div style={{ fontFamily: 'Cormorant Garamond, serif', fontSize: 30, marginBottom: 8 }}>
+                  Спроси о своём образе
+                </div>
+                <p style={{ color: 'var(--muted)', maxWidth: 560, margin: '0 auto 22px', lineHeight: 1.7 }}>
+                  Ассистент посмотрит на вещи в твоём гардеробе и предложит готовый комплект без лишней анкеты и сложных настроек.
+                </p>
+                <div className="chat-example-list">
+                  {EXAMPLES.map(example => (
+                    <button key={example} className="chat-example" onClick={() => sendMessage(example)}>
+                      {example}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="chat-messages">
+                {messages.map(message => (
+                  <div key={message.id} className={`chat-message ${message.role}`}>
+                    <div className="chat-bubble">
+                      <div className="chat-role">{message.role === 'assistant' ? 'AURA' : 'Ты'}</div>
+                      <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{message.content}</div>
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="chat-messages">
-              {messages.map(message => (
-                <div key={message.id} className={`chat-message ${message.role}`}>
-                  <div className="chat-bubble">
-                    <div className="chat-role">{message.role === 'assistant' ? 'AURA' : 'Ты'}</div>
-                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{message.content}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+            )}
+          </div>
 
           <form onSubmit={onSubmit} className="chat-composer">
             <textarea

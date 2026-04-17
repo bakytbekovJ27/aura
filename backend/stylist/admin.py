@@ -3,7 +3,7 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
 from django.utils.html import format_html
 
-from .models import ACCESSORY_CATEGORIES, AIRecommendation, ChatMessage, ChatSession, UserProfile, WardrobeItem
+from .models import ACCESSORY_CATEGORIES, AIRecommendation, ChatMessage, ChatSession, Collection, Look, UserProfile, WardrobeItem
 
 
 class UserProfileInline(admin.StackedInline):
@@ -145,3 +145,19 @@ class AIRecommendationAdmin(admin.ModelAdmin):
     list_filter = ('rec_type', 'created_at')
     search_fields = ('user__username',)
     readonly_fields = ('created_at', 'input_params', 'result')
+
+
+@admin.register(Collection)
+class CollectionAdmin(admin.ModelAdmin):
+    list_display = ('name', 'user', 'created_at')
+    search_fields = ('name', 'description', 'user__username')
+    readonly_fields = ('created_at',)
+
+
+@admin.register(Look)
+class LookAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'user', 'collection', 'rating', 'created_at')
+    list_filter = ('rating', 'created_at')
+    search_fields = ('name', 'user__username', 'ai_feedback')
+    readonly_fields = ('created_at',)
+    filter_horizontal = ('items',)

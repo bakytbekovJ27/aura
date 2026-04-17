@@ -9,12 +9,14 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from .models import ACCESSORY_CATEGORIES, AIRecommendation, ChatMessage, ChatSession, UserProfile, WardrobeItem
+from .models import ACCESSORY_CATEGORIES, AIRecommendation, ChatMessage, ChatSession, Collection, Look, UserProfile, WardrobeItem
 from .serializers import (
     AIRecommendationSerializer,
     ChatMessageCreateSerializer,
     ChatMessageSerializer,
     ChatSessionSerializer,
+    CollectionSerializer,
+    LookSerializer,
     UserProfileSerializer,
     UserRegisterSerializer,
     WardrobeItemSerializer,
@@ -148,6 +150,164 @@ def generate_stylist_reply(user, session, content):
             pass
 
     return fallback_stylist_reply(user, content, wardrobe_items, accessory_items, history)
+
+
+SHOE_CATEGORIES = {'sneakers', 'heels', 'boots', 'loafers', 'sandals'}
+TOP_CATEGORIES = {'shirt_short', 'shirt_long', 'tshirt', 'top', 'blouse', 'sweater', 'hoodie'}
+BOTTOM_CATEGORIES = {'jeans_ankle', 'jeans_full', 'pants_classic', 'pants_wide', 'skirt_mini', 'skirt_midi'}
+DRESS_CATEGORIES = {'dress_casual', 'dress_evening', 'jumpsuit'}
+OUTERWEAR_CATEGORIES = {'jacket', 'blazer', 'coat', 'trench'}
+
+
+def score_look_fallback(items):
+    if not items:
+        return 1, 'В образ пока ничего не добавлено. Выбери хотя бы одну вещь, и я смогу дать оценку.'
+
+    categories = [item.category for item in items]
+    seasons = [item.season for item in items if item.season != 'all']
+    accessories = [item for item in items if item.category in ACCESSORY_CATEGORIES]
+    has_top = any(category in TOP_CATEGORIES for category in categories)
+    has_bottom = any(category in BOTTOM_CATEGORIES for category in categories)
+    has_dress = any(category in DRESS_CATEGORIES for category in categories)
+    has_outerwear = any(category in OUTERWEAR_CATEGORIES for category in categories)
+    has_shoes = any(category in SHOE_CATEGORIES for category in categories)
+    season_consistent = len(set(seasons)) <= 1
+
+    duplicate_penalty = sum(max(categories.count(category) - 1, 0) for category in set(categories))
+    score = 38
+
+    if has_dress:
+        score += 24
+    if has_top and has_bottom:
+        score += 26
+    if has_shoes:
+        score += 12
+    if accessories:
+        score += 8
+    if has_outerwear:
+        score += 6
+    if season_consistent:
+        score += 10
+    if len(set(categories)) >= 3:
+        score += 10
+    if duplicate_penalty > 1:
+        score -= min(duplicate_penalty * 6, 18)
+    if not has_shoes:
+        score -= 10
+    if not has_dress and not (has_top and has_bottom):
+        score -= 12
+
+    score = max(10, min(score, 98))
+    if score >= 86:
+        rating = 5
+    elif score >= 70:
+        rating = 4
+    elif score >= 54:
+        rating = 3
+    elif score >= 38:
+        rating = 2
+    else:
+        rating = 1
+
+    positives = []
+    improvements = []
+
+    if has_dress or (has_top and has_bottom):
+        positives.append('база образа уже собрана и читается цельно')
+    else:
+        improvements.append('не хватает более цельной основы: пары верх + низ или платья')
+
+    if has_shoes:
+        positives.append('есть обувь, поэтому комплект ощущается завершённым')
+    else:
+        improvements.append('добавь обувь, чтобы образ выглядел завершённее')
+
+    if accessories:
+        positives.append('аксессуар добавляет финальный акцент')
+    else:
+        improvements.append('один аксессуар сделал бы образ выразительнее')
+
+    if season_consistent:
+        positives.append('вещи хорошо совпадают по сезону')
+    elif seasons:
+        improvements.append('вещи смешаны по сезону, лучше выровнять комплект')
+
+    if duplicate_penalty > 1:
+        improvements.append('в образе много похожих по роли вещей, можно упростить состав')
+
+    positive_text = ', '.join(positives[:3]) if positives else 'образ уже имеет хороший потенциал'
+    improvement_text = ' '.join(improvements[:2]) if improvements else 'Сейчас всё выглядит достаточно сбалансированно.'
+
+    feedback = (
+        f'Оценила этот образ на {rating}/5. {positive_text.capitalize()}. '
+        f'{improvement_text}'
+    )
+    return rating, feedback
+
+
+def summarize_look_items(items):
+    return '\n'.join(
+        f'- {item.name}: {item.get_category_display()}, сезон {item.get_season_display()}, цвет {item.color or "не указан"}'
+        for item in items
+    )
+
+
+def generate_look_feedback(user, look):
+    items = list(look.items.all())
+    fallback_rating, fallback_feedback = score_look_fallback(items)
+
+    api_key = os.getenv('ANTHROPIC_API_KEY')
+    if not api_key or not items:
+        return fallback_rating, fallback_feedback
+
+    payload = json.dumps(
+        {
+            'model': 'claude-sonnet-4-20250514',
+            'max_tokens': 450,
+            'system': (
+                'Ты AI-стилист приложения AURA. '
+                'Оцени образ пользователя по шкале от 1 до 5 и дай короткий практичный комментарий на русском. '
+                'Ответь строго JSON-объектом формата {"rating": number, "feedback": "text"}.'
+            ),
+            'messages': [
+                {
+                    'role': 'user',
+                    'content': (
+                        f'Пользователь: {user.username}\n'
+                        f'Название образа: {look.name or "Без названия"}\n'
+                        f'Состав образа:\n{summarize_look_items(items)}\n'
+                        'Оцени цельность, сезонность, завершённость и баланс.'
+                    ),
+                }
+            ],
+        }
+    ).encode('utf-8')
+    req = urllib_request.Request(
+        'https://api.anthropic.com/v1/messages',
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'x-api-key': api_key,
+            'anthropic-version': '2023-06-01',
+        },
+        method='POST',
+    )
+
+    try:
+        with urllib_request.urlopen(req, timeout=25) as response:
+            body = json.loads(response.read().decode('utf-8'))
+        text_blocks = body.get('content') or []
+        text = '\n'.join(block.get('text', '') for block in text_blocks if block.get('type') == 'text').strip()
+        start = text.find('{')
+        end = text.rfind('}')
+        if start == -1 or end == -1:
+            raise ValueError('JSON block not found')
+        parsed = json.loads(text[start:end + 1])
+        rating = int(parsed.get('rating', fallback_rating))
+        feedback = str(parsed.get('feedback', fallback_feedback)).strip() or fallback_feedback
+        return max(1, min(rating, 5)), feedback
+    except (error.URLError, TimeoutError, ValueError, KeyError, json.JSONDecodeError, TypeError):
+        return fallback_rating, fallback_feedback
 
 
 class RegisterView(generics.CreateAPIView):
@@ -297,3 +457,43 @@ class AIRecommendationViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class CollectionViewSet(viewsets.ModelViewSet):
+    serializer_class = CollectionSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Collection.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class LookViewSet(viewsets.ModelViewSet):
+    serializer_class = LookSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = (
+            Look.objects.filter(user=self.request.user)
+            .select_related('collection')
+            .prefetch_related('items')
+            .order_by('-created_at')
+        )
+        collection_id = self.request.query_params.get('collection')
+        if collection_id:
+            queryset = queryset.filter(collection_id=collection_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=['post'])
+    def ai_feedback(self, request, pk=None):
+        look = self.get_object()
+        rating, feedback = generate_look_feedback(request.user, look)
+        look.rating = rating
+        look.ai_feedback = feedback
+        look.save(update_fields=['rating', 'ai_feedback'])
+        return Response(self.get_serializer(look).data)

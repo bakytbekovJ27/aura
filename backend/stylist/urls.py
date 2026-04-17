@@ -6,6 +6,8 @@ router = DefaultRouter()
 router.register('wardrobe', views.WardrobeViewSet, basename='wardrobe')
 router.register('chat-sessions', views.ChatSessionViewSet, basename='chat-sessions')
 router.register('recommendations', views.AIRecommendationViewSet, basename='recommendations')
+router.register('collections', views.CollectionViewSet, basename='collections')
+router.register('looks', views.LookViewSet, basename='looks')
 
 urlpatterns = [
     path('register/', views.RegisterView.as_view(), name='register'),

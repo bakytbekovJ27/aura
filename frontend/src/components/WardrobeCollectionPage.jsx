@@ -111,7 +111,7 @@ function ItemModal({ item, kind, onClose, onSaved }) {
               name="notes"
               value={form.notes}
               onChange={handle}
-              className="form-control"
+              className="form-control form-control-notes"
               placeholder={kind === 'accessories' ? 'Подходит к строгим образам...' : 'Идеальна для офиса и встреч...'}
             />
           </div>
@@ -181,20 +181,32 @@ export default function WardrobeCollectionPage({
   }, [kind, filter.category, filter.season, filter.search]);
 
   const toggleFav = async item => {
-    const response = await api.post(`/wardrobe/${item.id}/toggle_favorite/`);
-    setItems(prev => prev.map(entry => (
-      entry.id === item.id ? { ...entry, is_favorite: response.is_favorite } : entry
-    )));
+    try {
+      const response = await api.post(`/wardrobe/${item.id}/toggle_favorite/`);
+      setItems(prev => prev.map(entry => (
+        entry.id === item.id ? { ...entry, is_favorite: response.is_favorite } : entry
+      )));
+      setStats(prev => ({
+        ...prev,
+        favorites: Math.max(
+          (prev.favorites ?? 0) + (response.is_favorite ? 1 : -1),
+          0,
+        ),
+      }));
+    } catch (error) {
+      toast(error.message, 'error');
+    }
   };
 
   const deleteItem = async id => {
     if (!window.confirm('Удалить вещь?')) return;
     await api.delete(`/wardrobe/${id}/`);
+    const deleted = items.find(item => item.id === id);
     setItems(prev => prev.filter(item => item.id !== id));
     setStats(prev => ({
       ...prev,
       total: Math.max((prev.total || 1) - 1, 0),
-      favorites: prev.favorites,
+      favorites: Math.max((prev.favorites ?? 0) - (deleted?.is_favorite ? 1 : 0), 0),
     }));
     toast('Удалено', 'default');
   };

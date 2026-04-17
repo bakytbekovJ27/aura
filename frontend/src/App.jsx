@@ -6,8 +6,10 @@ import { LoginPage, RegisterPage } from './pages/AuthPages';
 import Dashboard                   from './pages/Dashboard';
 import WardrobePage                from './pages/WardrobePage';
 import AccessoriesPage             from './pages/AccessoriesPage';
+import LooksPage                   from './pages/LooksPage';
 import TipsPage                    from './pages/TipsPage';
 import ProfilePage                 from './pages/ProfilePage';
+import FloatingGuide               from './components/FloatingGuide';
 import './index.css';
 
 // ── Protected layout with sidebar ──
@@ -33,11 +35,13 @@ function AppLayout() {
           <Route path="/"          element={<Dashboard />}   />
           <Route path="/wardrobe"  element={<WardrobePage />}/>
           <Route path="/accessories" element={<AccessoriesPage />}/>
+          <Route path="/looks"     element={<LooksPage />}   />
           <Route path="/tips"      element={<TipsPage />}    />
           <Route path="/profile"   element={<ProfilePage />} />
           <Route path="*"          element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <FloatingGuide />
     </div>
   );
 }
