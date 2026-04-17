@@ -1,0 +1,60 @@
+import { NavLink, useNavigate } from 'react-router-dom';
+import { useAuth } from '../hooks/useAuth';
+import { useToast } from '../hooks/useToast';
+
+const NAV = [
+  { to: '/',          icon: '🏠', label: 'Главная'   },
+  { to: '/wardrobe',  icon: '👗', label: 'Гардероб'  },
+  { to: '/accessories', icon: '👜', label: 'Аксессуары' },
+  { to: '/tips',      icon: '💬', label: 'Ассистент' },
+  { to: '/profile',   icon: '👤', label: 'Профиль'   },
+];
+
+export default function Sidebar() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const toast    = useToast();
+
+  const handleLogout = () => {
+    logout();
+    toast('До свидания! 👋', 'default');
+    navigate('/login');
+  };
+
+  return (
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        AU<span>RA</span>
+      </div>
+
+      <nav className="sidebar-nav">
+        {NAV.map(({ to, icon, label }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="nav-icon">{icon}</span>
+            {label}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="sidebar-footer">
+        {user && (
+          <div style={{ padding: '0 4px 12px', fontSize: 13, color: 'var(--muted)' }}>
+            <div style={{ fontWeight: 500, color: 'var(--ink)', marginBottom: 2 }}>
+              {user.first_name || user.username}
+            </div>
+            <div style={{ fontSize: 11, letterSpacing: '0.5px' }}>{user.email}</div>
+          </div>
+        )}
+        <button className="nav-item" onClick={handleLogout} style={{ color: '#c0556a' }}>
+          <span className="nav-icon">🚪</span>
+          Выйти
+        </button>
+      </div>
+    </aside>
+  );
+}
