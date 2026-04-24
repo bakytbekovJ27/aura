@@ -707,8 +707,24 @@ textarea.form-control-notes {
   transition: var(--transition);
 }
 
-.chat-example:hover {
+.chat-example-refresh {
+  border: 1px solid rgba(242, 160, 176, 0.26);
+  background: var(--rose-pale);
+  color: var(--ink);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+  font-size: 16px;
+}
+
+.chat-example-refresh:hover {
   background: var(--blush);
+  transform: rotate(180deg);
 }
 
 .chat-messages {
@@ -1074,4 +1090,132 @@ textarea.form-control-notes {
   .auth-page { grid-template-columns: 1fr; }
   .auth-left { display: none; }
   .form-grid-2 { grid-template-columns: 1fr; }
+}
+
+/* ── Chat Session Delete Button ── */
+.chat-session-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chat-session-delete {
+  background: rgba(224, 112, 144, 0.1);
+  border: 1px solid rgba(224, 112, 144, 0.2);
+  color: var(--rose-deep);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: var(--transition);
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+.chat-session-wrapper:hover .chat-session-delete {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.chat-session-delete:hover {
+  background: var(--rose-deep);
+  color: white;
+  border-color: var(--rose-deep);
+}
+
+/* ── Outfit Recommendation Cards ── */
+.outfit-recommendation-card {
+  margin-top: 16px;
+  background: white;
+  border: 1px solid rgba(242, 160, 176, 0.3);
+  border-radius: var(--radius);
+  padding: 20px;
+  box-shadow: var(--shadow);
+}
+
+.outfit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.outfit-header h4 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 18px;
+  color: var(--ink);
+  margin: 0;
+}
+
+.outfit-occasion {
+  background: var(--rose-pale);
+  color: var(--rose-deep);
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.outfit-description {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.outfit-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.outfit-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--rose-pale);
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(242, 160, 176, 0.2);
+}
+
+.outfit-item-image {
+  width: 50px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 8px;
+  flex-shrink: 0;
+}
+
+.outfit-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.outfit-item-name {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.outfit-item-details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.outfit-item-details span {
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--muted);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
 }

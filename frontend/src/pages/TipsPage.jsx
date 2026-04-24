@@ -3,11 +3,115 @@ import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { useToast } from '../hooks/useToast';
 
-const EXAMPLES = [
+const ALL_EXAMPLES = [
   'Я сегодня иду на встречу с HR, подбери мне образ.',
   'Мне нужен спокойный образ для офиса и прохладной погоды.',
   'Собери мне casual look на выходные с тем, что уже есть в гардеробе.',
+  'Подбери образ для деловой встречи в теплую погоду.',
+  'Мне нужен стильный look для вечера с друзьями.',
+  'Собери повседневный образ для прогулки по городу.',
+  'Подбери одежду для романтического свидания.',
+  'Мне нужен комфортный образ для работы из дома.',
+  'Собери спортивный look для активного отдыха.',
+  'Подбери элегантный образ для важного события.',
+  'Мне нужен минималистичный стиль на каждый день.',
+  'Собери образ в стиле бохо для выходных.',
+  'Подбери одежду для путешествия в прохладную погоду.',
+  'Мне нужен яркий и запоминающийся look.',
+  'Собери классический образ для офиса.',
+  'Подбери комфортную одежду для долгого дня.',
+  'Мне нужен стильный look для фотосессии.',
+  'Собери образ в скандинавском стиле.',
+  'Подбери одежду для пляжного отдыха.',
+  'Мне нужен универсальный образ на все случаи жизни.',
 ];
+
+// Функция для выбора 3 случайных примеров
+const getRandomExamples = () => {
+  const shuffled = [...ALL_EXAMPLES].sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, 3);
+};
+
+function OutfitRecommendationCard({ recommendation }) {
+  const { items = [], description = '', occasion = '' } = recommendation;
+
+  return (
+    <div className="outfit-recommendation-card">
+      <div className="outfit-header">
+        <h4>Рекомендуемый образ</h4>
+        {occasion && <span className="outfit-occasion">{occasion}</span>}
+      </div>
+      
+      {description && (
+        <p className="outfit-description">{description}</p>
+      )}
+      
+      <div className="outfit-items">
+        {items.map((item, index) => (
+          <div key={index} className="outfit-item">
+            {item.image && (
+              <img 
+                src={item.image} 
+                alt={item.name} 
+                className="outfit-item-image"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                }}
+              />
+            )}
+            <div className="outfit-item-info">
+              <div className="outfit-item-name">{item.name}</div>
+              <div className="outfit-item-details">
+                {item.category && <span>{item.category}</span>}
+                {item.color && <span>{item.color}</span>}
+                {item.brand && <span>{item.brand}</span>}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Функция для парсинга рекомендаций образов из текста ИИ
+const parseOutfitRecommendation = (content) => {
+  // Ищем паттерны типа "ВЕРХ: Черный свитер" или "НИЗ: Синие джинсы"
+  const lines = content.split('\n');
+  const items = [];
+  let description = '';
+  let occasion = '';
+  
+  for (const line of lines) {
+    const upperMatch = line.match(/^ВЕРХ:\s*(.+)$/i);
+    const lowerMatch = line.match(/^НИЗ:\s*(.+)$/i);
+    const shoesMatch = line.match(/^ОБУВЬ:\s*(.+)$/i);
+    const accessoryMatch = line.match(/^АКСЕССУАРЫ?:\s*(.+)$/i);
+    const occasionMatch = line.match(/^СИТУАЦИЯ:\s*(.+)$/i);
+    
+    if (upperMatch) {
+      items.push({ name: upperMatch[1].trim(), category: 'Верхняя одежда' });
+    } else if (lowerMatch) {
+      items.push({ name: lowerMatch[1].trim(), category: 'Нижняя одежда' });
+    } else if (shoesMatch) {
+      items.push({ name: shoesMatch[1].trim(), category: 'Обувь' });
+    } else if (accessoryMatch) {
+      items.push({ name: accessoryMatch[1].trim(), category: 'Аксессуары' });
+    } else if (occasionMatch) {
+      occasion = occasionMatch[1].trim();
+    } else if (!line.includes(':') && line.trim() && !description) {
+      // Первая строка без двоеточия - описание
+      description = line.trim();
+    }
+  }
+  
+  // Если нашли хотя бы 2 элемента, считаем это рекомендацией образа
+  if (items.length >= 2) {
+    return { items, description, occasion };
+  }
+  
+  return null;
+};
 
 export default function TipsPage() {
   const toast = useToast();
@@ -18,6 +122,7 @@ export default function TipsPage() {
   const [loadingSessions, setLoadingSessions] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
+  const [examples, setExamples] = useState(getRandomExamples());
 
   const activeSession = sessions.find(session => session.id === activeSessionId) || null;
 
@@ -97,12 +202,24 @@ export default function TipsPage() {
     }
   };
 
-  const startFreshChat = async () => {
+  const deleteSession = async sessionId => {
+    if (!confirm('Удалить этот диалог? Это действие нельзя отменить.')) return;
+    
     try {
-      await createSession('');
+      await api.delete(`/chat-sessions/${sessionId}/`);
+      setSessions(prev => prev.filter(session => session.id !== sessionId));
+      if (activeSessionId === sessionId) {
+        const remaining = sessions.filter(session => session.id !== sessionId);
+        setActiveSessionId(remaining[0]?.id || null);
+      }
+      toast('Диалог удален', 'success');
     } catch (error) {
       toast(error.message, 'error');
     }
+  };
+
+  const refreshExamples = () => {
+    setExamples(getRandomExamples());
   };
 
   const onSubmit = async event => {
@@ -122,7 +239,7 @@ export default function TipsPage() {
         <aside className="chat-sidebar card">
           <div className="flex-between" style={{ marginBottom: 16 }}>
             <div className="section-title" style={{ fontSize: 18 }}>Диалоги</div>
-            <button className="btn btn-ghost btn-sm" onClick={startFreshChat}>+ Новый</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => createSession('')}>+ Новый</button>
           </div>
 
           {loadingSessions ? (
@@ -134,16 +251,27 @@ export default function TipsPage() {
           ) : (
             <div className="chat-session-list">
               {sessions.map(session => (
-                <button
-                  key={session.id}
-                  className={`chat-session-item ${session.id === activeSessionId ? 'active' : ''}`}
-                  onClick={() => setActiveSessionId(session.id)}
-                >
-                  <div className="chat-session-title">{session.title || 'Новый диалог'}</div>
-                  <div className="chat-session-preview">
-                    {session.last_message?.content || 'Диалог пока пуст'}
-                  </div>
-                </button>
+                <div key={session.id} className="chat-session-wrapper">
+                  <button
+                    className={`chat-session-item ${session.id === activeSessionId ? 'active' : ''}`}
+                    onClick={() => setActiveSessionId(session.id)}
+                  >
+                    <div className="chat-session-title">{session.title || 'Новый диалог'}</div>
+                    <div className="chat-session-preview">
+                      {session.last_message?.content || 'Диалог пока пуст'}
+                    </div>
+                  </button>
+                  <button 
+                    className="chat-session-delete"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteSession(session.id);
+                    }}
+                    title="Удалить диалог"
+                  >
+                    ×
+                  </button>
+                </div>
               ))}
             </div>
           )}
@@ -165,23 +293,33 @@ export default function TipsPage() {
                   Ассистент посмотрит на вещи в твоём гардеробе и предложит готовый комплект без лишней анкеты и сложных настроек.
                 </p>
                 <div className="chat-example-list">
-                  {EXAMPLES.map(example => (
+                  {examples.map(example => (
                     <button key={example} className="chat-example" onClick={() => sendMessage(example)}>
                       {example}
                     </button>
                   ))}
+                  <button className="chat-example-refresh" onClick={refreshExamples} title="Показать другие примеры">
+                    🔄
+                  </button>
                 </div>
               </div>
             ) : (
               <div className="chat-messages">
-                {messages.map(message => (
-                  <div key={message.id} className={`chat-message ${message.role}`}>
-                    <div className="chat-bubble">
-                      <div className="chat-role">{message.role === 'assistant' ? 'AURA' : 'Ты'}</div>
-                      <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{message.content}</div>
+                {messages.map(message => {
+                  const outfitRecommendation = message.role === 'assistant' ? parseOutfitRecommendation(message.content) : null;
+                  
+                  return (
+                    <div key={message.id} className={`chat-message ${message.role}`}>
+                      <div className="chat-bubble">
+                        <div className="chat-role">{message.role === 'assistant' ? 'AURA' : 'Ты'}</div>
+                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>{message.content}</div>
+                        {outfitRecommendation && (
+                          <OutfitRecommendationCard recommendation={outfitRecommendation} />
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -192,7 +330,6 @@ export default function TipsPage() {
               onChange={event => setPrompt(event.target.value)}
               className="form-control"
               placeholder="Например: Я иду на встречу с HR, хочу выглядеть уверенно и спокойно. Подбери образ из моего гардероба."
-              rows={3}
             />
             <div className="flex-between" style={{ alignItems: 'center', gap: 12 }}>
               <div style={{ fontSize: 12, color: 'var(--muted)' }}>
